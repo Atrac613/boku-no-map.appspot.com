@@ -1,0 +1,270 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"> 
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja" dir="ltr" xmlns:og="http://ogp.me/ns#" xmlns:mixi="http://mixi-platform.com/ns#" xmlns:fb="http://www.facebook.com/2008/fbml"> 
+
+<title>{{ map_title }} | ボクのマップ</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="Content-Style-Type" content="text/css" />
+<meta http-equiv="Content-Script-Type" content="text/javascript" />
+<meta name="viewport" content="width=415, user-scalable=no /">
+
+<link rel="stylesheet" media="all" href="/js/jquery.simpledialog.0.1.css" type="text/css" />
+
+<script type="text/javascript" src="https://www.google.com/jsapi?key=ABQIAAAABWHoUYB9jDrGW3d3NAJY4hQqau2NnAKqpdE-nWR9VqhYDKeM3RQOkLNfGD3gd3ZMgrn9jNe041vL0g"></script>
+<script language="Javascript" type="text/javascript">
+	google.load("jquery", "1");
+	google.load("jqueryui", "1");
+</script>
+<script type="text/javascript" src="/js/jquery.easing.1.3.js"></script>
+<script type="text/javascript" src="/js/jquery.simpledialog.0.1.js"></script>
+
+<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=true"></script>
+
+<script language="Javascript" type="text/javascript">
+
+var map;
+var markersArray = [];
+var currentMarkerId = 0;
+
+function initialize(lat, lng) {
+  var haightAshbury = new google.maps.LatLng(lat, lng);
+  var mapOptions = {
+    zoom: 15,
+    center: haightAshbury,
+    mapTypeId: google.maps.MapTypeId.ROADMAP
+  };
+  map =  new google.maps.Map(document.getElementById("map_canvas"), mapOptions);
+
+  google.maps.event.addListener(map, 'click', function(event) {
+	  markersArray[currentMarkerId].setPosition(event.latLng);
+	  
+	  $("#edit_marker input[name='lat']").val(event.latLng.lat());
+	  $("#edit_marker input[name='lng']").val(event.latLng.lng());
+  });
+  
+  {% for activity in activity_list %}
+  var location = new google.maps.LatLng({{activity.lat}}, {{activity.lng}});
+  addMarker(location, '{{activity.id}}', '{{activity.name}}', '{{activity.tags}}', '{{activity.icon}}');
+  {% endfor %}
+}
+  
+function addMarker(location, id, name, tags, icon) {
+	if (icon.length) {
+		icon_path = '/api/get_icon?id=' + icon
+	} else {
+		icon_path = ''
+	}
+  marker = new google.maps.Marker({
+    position: location,
+    map: map,
+    title: name,
+    icon: icon_path
+  });
+  markersArray.push(marker);
+  
+  attachMessage(marker, id, name, tags);
+}
+
+// Removes the overlays from the map, but keeps them in the array
+function clearOverlays() {
+  if (markersArray) {
+    for (i in markersArray) {
+      markersArray[i].setMap(null);
+    }
+  }
+}
+
+function attachMessage(marker, id, name, tags) {
+    google.maps.event.addListener(marker, 'click', function() {
+    	var contentString = '<span style="line-height:1.4em;font-size:1em;">'+name+'</span><br />';
+    	contentString += '<span style="line-height:1.4em;font-size:0.9em;">'+tags+'</span>';
+
+		var infowindow = new google.maps.InfoWindow({
+    	    content: contentString
+    	});
+    	infowindow.open(map, marker);
+    });
+  }
+
+// Shows any overlays currently in the array
+function showOverlays() {
+  if (markersArray) {
+    for (i in markersArray) {
+      markersArray[i].setMap(map);
+    }
+  }
+}
+
+// Deletes all markers in the array by removing references to them
+function deleteOverlays() {
+  if (markersArray) {
+    for (i in markersArray) {
+      markersArray[i].setMap(null);
+    }
+    markersArray.length = 0;
+  }
+}
+
+$(document).ready(function(){
+    run('{{lat}}', '{{lng}}');
+    
+    if ((navigator.userAgent.match(/iPhone/i)) || (navigator.userAgent.match(/iPod/i))) {
+    	$("#map_canvas").width(400);
+    } else if ((navigator.userAgent.match(/iPad/i))) {
+    	viewport = document.querySelector("meta[name=viewport]");
+    	viewport.setAttribute('content', 'width=615, user-scalable=no ');
+    	
+    	$("#map_canvas").width(600);
+    	$("#map_canvas").height(400);
+    } else if ((navigator.userAgent.match(/Android/i))) {
+    	viewport = document.querySelector("meta[name=viewport]");
+    	viewport.setAttribute('content', 'width=315, user-scalable=no ');
+    } else {
+    	$("#map_canvas").width(800);
+    	$("#map_canvas").height(500);
+    }
+});
+
+//GeoLocation APIを使って、現在地を取得し、callback関数を呼び出す
+function run(lat, lng) {
+	if (lat && lng) {
+		//buildMap(lat, lng);
+		initialize(lat, lng);
+		$("#set_home input[name='lat']").val(lat);
+	    $("#set_home input[name='lng']").val(lng);
+	    
+	    $("#set_marker input[name='lat']").val(lat);
+	    $("#set_marker input[name='lng']").val(lng);
+	} else {
+	    navigator.geolocation.getCurrentPosition(callback);
+	}
+}
+
+//現在地を取得したあとに呼び出されるcallback関数
+function callback(position) {
+
+    lat = position.coords.latitude　//緯度
+    lng = position.coords.longitude;　//経度
+
+    $("#set_home input[name='lat']").val(lat);
+    $("#set_home input[name='lng']").val(lng);
+    
+    $("#set_marker input[name='lat']").val(lat);
+    $("#set_marker input[name='lng']").val(lng);
+    
+    var myLatlng = new google.maps.LatLng(lat, lng);
+    var myOptions = {
+    	    zoom: 15,
+    	    center: myLatlng,
+    	    mapTypeId: google.maps.MapTypeId.ROADMAP,
+    	  }
+    
+    //buildMap(lat, lng, myOptions);
+    initialize(lat, lng);
+}
+
+function buildMap(lat, lng, myOptions) {
+	var centerPos = new google.maps.LatLng(lat,lng);
+	
+	//Google Mapのオプションを設定する
+    var mapOptions = {
+      zoom : 15,　　//どれだけ、ズームするか？
+      center : centerPos,　　//中心の場所は？
+      mapTypeId: google.maps.MapTypeId.ROADMAP　　//地図のタイプは？航空写真なのか、等。
+    };
+
+	//mapOptionsをもとにマップを作り、id="map_camvas"に表示する。
+    var map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
+
+	//buildMarker(lat, lng);
+	
+	var marker = new google.maps.Marker({
+        position: centerPos   //場所を決める。ここでは上で求めた現在地を表示
+    });
+	marker.setMap(map);
+    
+	google.maps.event.addListener(map, 'click', function(event) {
+		//marker.setPosition(event.latLng);
+		
+		$("#set_home input[name='lat']").val(event.latLng.lat());
+	    $("#set_home input[name='lng']").val(event.latLng.lng());
+	    
+	    $("#set_marker input[name='lat']").val(event.latLng.lat());
+	    $("#set_marker input[name='lng']").val(event.latLng.lng());
+   	});
+}
+
+function buildMarker(lat, lng, myOptions){
+	var myLatlng = new google.maps.LatLng(lat, lng);
+	  
+	 var map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
+	    
+	 var marker = new google.maps.Marker({
+	      position: myLatlng,
+	      title:"Hello World!"
+	  });
+	  
+	  // To add the marker to the map, call setMap();
+	  marker.setMap(map);  
+}
+
+</script>
+
+</head>
+<body>
+
+<h1><center>{{ map_title }}</center></h1>
+
+<center>
+
+<div id="map_canvas" style="width:300px; height:250px"></div>
+
+</center>
+
+{% if available_icon_list %}
+<hr />
+<center>
+{% for icon in available_icon_list %}
+<img src="/api/get_icon?id={{ icon.id }}" width="15" />{{ icon.name }}&nbsp;
+{% endfor %}
+</center>
+{% endif %}
+
+<center>
+<h3>マークを編集する</h3>
+<form action="/map/edit/{{ map_id }}" method="post" id="edit_marker" style="margin-bottom:20px;">
+<input type="hidden" name="mode" value="edit_marker" />
+<input type="hidden" name="marker_id" value="{{ activity_list.0.id }}" />
+<input type="hidden" name="lat" value="{{ activity_list.0.lat }}" />
+<input type="hidden" name="lng" value="{{ activity_list.0.lng }}" />
+マーカーの名前<br />
+<input type="text" name="name" value="{{ activity_list.0.name }}" /><br />
+タグ<br />
+<input type="text" name="tags" value="{{ activity_list.0.tags }}" /><br />
+{% if icon_list %}
+アイコン<br />
+<select name="icon">
+<option value="">標準</option>
+{% for icon in icon_list %}
+<option value="{{ icon.id }}" {% ifequal activity_list.0.icon icon.id %}selected="selected"{% endifequal %}>{{ icon.name }}</option>
+{% endfor %}
+</select>
+<br />
+<br />
+{% endif %}
+<!-- <input type="file" name="photo" /><br /> -->
+<input type="submit" value="登録" />
+</form>
+</center>
+
+<hr />
+
+<center>
+{% if login %}
+<a href="{{ url }}">ログアウト</a>
+{% else %}
+<a href="{{ url }}">ログイン</a>
+{% endif %}
+</center>
+
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"> 
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja" dir="ltr" xmlns:og="http://ogp.me/ns#" xmlns:mixi="http://mixi-platform.com/ns#" xmlns:fb="http://www.facebook.com/2008/fbml"> 
+
+<title>ボクのマップ</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="Content-Style-Type" content="text/css" />
+<meta http-equiv="Content-Script-Type" content="text/javascript" />
+<meta name="viewport" content="width=415, user-scalable=no /">
+
+<script type="text/javascript" src="https://www.google.com/jsapi"></script>
+<script language="Javascript" type="text/javascript">
+	google.load("jquery", "1");
+	google.load("jqueryui", "1");
+</script>
+
+<script language="Javascript" type="text/javascript">
+	$(document).ready(function(){
+		if ((navigator.userAgent.match(/iPad/i))) {
+			viewport = document.querySelector("meta[name=viewport]");
+	    	viewport.setAttribute('content', 'width=600, user-scalable=no ');
+	    }
+	});
+</script>
+
+<script language="Javascript" type="text/javascript">
+
+$(function() {
+	$("#form").submit(function(){
+		var map_title = $("#form input[name='map_id']").val();
+		if (map_title && map_title != 'null') {
+			if (!map_title.match( /[^A-Za-z0-9\s.-]+/ )) {
+				return true;
+			} else {
+				alert("Map ID は半角英数字でお願いします。");
+			}
+		} else {
+			alert("Map ID を入力してください。");
+		}
+		
+		return false;
+	});
+});
+
+</script>
+
+</head>
+<body>
+
+<h1>ボクのマップを作成する。</h1>
+
+{% if message %}
+<p>{{ message }}</p>
+{% endif %}
+
+<form action="/user/create" method="post" id="form">
+マップのID(英数字):<br />
+<input type="text" name="map_id" value="{{ map_id }}" /><br />
+マップのタイトル:<br />
+<input type="text" name="map_title" value="{{ map_title }}" /><br />
+<br />
+<input type="submit" value="Send" />
+</form>
+
+</body>
+</html>

@@ -1,0 +1,28 @@
+application: boku-no-map
+version: 1
+runtime: python
+api_version: 1
+
+handlers:
+- url: /css
+  static_dir: web/css
+
+- url: /images
+  static_dir: web/images
+
+- url: /js
+  static_dir: web/js
+  
+- url: /user/.*
+  login: required
+  script: user.py
+
+- url: /api/.*
+  script: api.py
+  
+- url: /map/.*
+  script: map.py
+
+- url: /.*
+  script: main.py
+  

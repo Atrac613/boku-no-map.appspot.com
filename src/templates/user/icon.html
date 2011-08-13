@@ -1,0 +1,59 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"> 
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja" dir="ltr" xmlns:og="http://ogp.me/ns#" xmlns:mixi="http://mixi-platform.com/ns#" xmlns:fb="http://www.facebook.com/2008/fbml"> 
+
+<title>ボクのマップ</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="Content-Style-Type" content="text/css" />
+<meta http-equiv="Content-Script-Type" content="text/javascript" />
+<meta name="viewport" content="width=415, user-scalable=no /">
+
+<script type="text/javascript" src="https://www.google.com/jsapi"></script>
+<script language="Javascript" type="text/javascript">
+	google.load("jquery", "1");
+</script>
+<script language="Javascript" type="text/javascript">
+	$(document).ready(function(){
+		if ((navigator.userAgent.match(/iPad/i))) {
+			viewport = document.querySelector("meta[name=viewport]");
+	    	viewport.setAttribute('content', 'width=600, user-scalable=no ');
+	    }
+	});
+</script>
+
+</head>
+<body>
+
+<h1>ボクのマップ</h1>
+
+<ul>
+	<li><a href="/user/home">戻る</a></li>
+</ul>
+
+{% if icon_list %}
+<h3>一覧</h3>
+<table style="margin:10px;" border="1">
+{% for icon in icon_list %}
+	<tr>
+		<td><img src="/api/get_icon?id={{ icon.id }}" width="15" /></td>
+		<td>{{ icon.name }}</td>
+		<td><form action="/user/icon" method="post">
+		<input type="hidden" name="mode" value="delete" />
+		<input type="hidden" name="id" value="{{ icon.id }}" />
+		<input type="submit" value="削除" />
+		</form></td>
+	</tr>
+{% endfor %}
+</table>
+{% endif %}
+
+<h3>追加</h3>
+
+<form action="/user/icon" method="post" enctype="multipart/form-data">
+<input type="hidden" name="mode" value="add" />
+アイコン名：<input type="text" name="name" /><br />
+アイコンファイル(png)：<input type="file" name="icon" /><br />
+<input type="submit" value="Save" />
+</form>
+
+</body>
+</html>
