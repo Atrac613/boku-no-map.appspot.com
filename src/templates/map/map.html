@@ -49,9 +49,9 @@ function initialize(lat, lng) {
 	  $("#set_marker input[name='lng']").val(event.latLng.lng());
   });
   
-  var activity_list = '{{ activity_list }}'.split(',');
-  for (var i in activity_list) {
-	  $.getJSON('/api/get_marker_data', {id: activity_list[i]}, function(data){
+  var activity_id_list = '{{ activity_id_list }}'.split(',');
+  for (var i in activity_id_list) {
+	  $.getJSON('/api/get_marker_data', {id: activity_id_list[i]}, function(data){
 		  var location = new google.maps.LatLng(data.lat, data.lng);
 		  addMarker(location, data.id, data.name, data.tags, data.icon);
 	  });
