@@ -43,9 +43,7 @@ class MapViewPage(webapp.RequestHandler):
                 icon_id = user_activity.icon.key().id()
                 available_icon_list.append({'id': icon_id, 'name': user_activity.icon.name})
                 
-            created_at = user_activity.created_at + datetime.timedelta(hours=9)
-                
-            activity_list.append({'id': user_activity.key().id(), 'name': user_activity.name, 'tags': user_activity.tags, 'icon': icon_id, 'lat': user_activity.geo.lat, 'lng': user_activity.geo.lon, 'created_at': created_at.strftime('%Y-%m-%d %H:%M:%S (JST)')})
+            activity_list.append(str(user_activity.key().id()))
         
         user = users.get_current_user()
         if user:
@@ -71,7 +69,7 @@ class MapViewPage(webapp.RequestHandler):
             'map_id': map_id,
             'lat': lat,
             'lng': lng,
-            'activity_list': activity_list,
+            'activity_list': ','.join(activity_list),
             'icon_list': icon_list,
             'available_icon_list': available_icon_list,
             'map_owner': map_owner,
