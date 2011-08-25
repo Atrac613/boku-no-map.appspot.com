@@ -14,6 +14,8 @@ from google.appengine.ext import db
 from google.appengine.api import images
 from google.appengine.api import memcache
 
+from django.utils import simplejson 
+
 from db import UserPrefs
 from db import UserMaps
 from db import UserActivity
@@ -44,8 +46,38 @@ class GetIconAPI(webapp.RequestHandler):
         self.response.headers['Content-Type'] = 'image/png'
         self.response.out.write(thumbnail)
         
+class GetMarkerDataAPI(webapp.RequestHandler):
+    def get(self):
+        
+        marker_id = self.request.get('id')
+        
+        data = memcache.get('marker_data_%s' % marker_id)
+        if data is None:
+            user_activity = UserActivity.get_by_id(int(marker_id))
+            if user_activity is None:
+                return self.error(404)
+            
+            icon_id = ''
+            if user_activity.icon is not None:
+                icon_id = user_activity.icon.key().id()
+                
+            created_at = user_activity.created_at + datetime.timedelta(hours=9)
+            
+            data = {'id': user_activity.key().id(), 'name': user_activity.name, 'tags': user_activity.tags, 'icon': icon_id, 'lat': user_activity.geo.lat, 'lng': user_activity.geo.lon, 'created_at': created_at.strftime('%Y-%m-%d %H:%M:%S (JST)')}
+        
+            memcache.add('marker_data_%s' % marker_id, data, 3600)
+            logging.info('Add memcache.')
+            
+        else:
+            logging.info('Load memcache.')
+        
+        json = simplejson.dumps(data, ensure_ascii=False)
+        self.response.content_type = 'application/json'
+        self.response.out.write(json)
+        
 application = webapp.WSGIApplication(
-                                     [('/api/get_icon', GetIconAPI)],
+                                     [('/api/get_icon', GetIconAPI),
+                                      ('/api/get_marker_data', GetMarkerDataAPI)],
                                      debug=True)
 
 def main():
