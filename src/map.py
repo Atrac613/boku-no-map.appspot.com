@@ -13,6 +13,7 @@ from google.appengine.api import mail
 from google.appengine.ext import db
 from google.appengine.api import images
 from google.appengine.api import memcache
+from google.appengine.api import taskqueue
 
 from db import UserPrefs
 from db import UserMaps
@@ -128,6 +129,11 @@ class MapViewPage(webapp.RequestHandler):
                 user_activity.icon = marker_icon.key()
             
             user_activity.put()
+            
+            try:
+                taskqueue.add(url='/task/build_tag_index', params={'map_id': map_id})
+            except:
+                logging.error('Taskqueue add failed.')
             
         return self.redirect('/map/%s' % map_id)
         

@@ -33,4 +33,9 @@ class UserActivity(db.Model):
     icon = db.ReferenceProperty(MarkerIcon)
     created_at = db.DateTimeProperty(auto_now_add=True)
     
+class UserActivityTagIndex(db.Model):
+    user_maps = db.ReferenceProperty(UserMaps)
+    tag = db.StringProperty()
+    user_activity_id_list = db.TextProperty()
+    created_at = db.DateTimeProperty(auto_now_add=True)
     

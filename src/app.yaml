@@ -19,6 +19,10 @@ handlers:
 
 - url: /api/.*
   script: api.py
+
+- url: /task/.*
+  script: task.py
+  login: admin
   
 - url: /map/.*
   script: map.py
