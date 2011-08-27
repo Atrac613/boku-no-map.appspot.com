@@ -20,6 +20,7 @@ from db import UserPrefs
 from db import UserMaps
 from db import UserActivity
 from db import MarkerIcon
+from db import UserActivityTagIndex
 
 class GetIconAPI(webapp.RequestHandler):
     def get(self):
@@ -75,9 +76,68 @@ class GetMarkerDataAPI(webapp.RequestHandler):
         self.response.content_type = 'application/json'
         self.response.out.write(json)
         
+class GetTagIndexAPI(webapp.RequestHandler):
+    def get(self):
+        
+        map_id = self.request.get('id')
+        
+        data = memcache.get('tag_index_%s' % map_id)
+        if data is None:
+            user_maps = UserMaps.all().filter('visible =', True).filter('map_id =', map_id).get()
+            if user_maps is None:
+                logging.error('map_id not found.')
+                return self.error(404)
+            
+            user_activity_tag_index_list = UserActivityTagIndex.all().filter('user_maps =', user_maps.key()).fetch(100)
+            if len(user_activity_tag_index_list) <= 0:
+                logging.error('Tag index not found.')
+                return self.error(404)
+            
+            data = []
+            for user_activity_tag_index in user_activity_tag_index_list:
+                data.append({'id': user_activity_tag_index.key().id(), 'tag': user_activity_tag_index.tag, 'count': user_activity_tag_index.count})
+            
+            memcache.add('tag_index_%s' % map_id, data, 3600)
+            logging.info('Add memcache.')
+            
+        else:
+            logging.info('Load memcache.')
+        
+        json = simplejson.dumps(data, ensure_ascii=False)
+        self.response.content_type = 'application/json'
+        self.response.out.write(json)
+        
+class GetMarkerIdFromIndexAPI(webapp.RequestHandler):
+    def get(self):
+        
+        index_id = self.request.get('id')
+        
+        data = memcache.get('tag_id_list_%s' % index_id)
+        if data is None:
+            user_activity_tag_index = UserActivityTagIndex.get_by_id(int(index_id))
+            if user_activity_tag_index is None:
+                logging.error('Tag index not found.')
+                return self.error(404)
+            
+            data = []
+            for marker_id in user_activity_tag_index.user_activity_id_list.split(','):
+                data.append(marker_id)
+            
+            memcache.add('tag_id_list_%s' % index_id, data, 3600)
+            logging.info('Add memcache.')
+            
+        else:
+            logging.info('Load memcache.')
+        
+        json = simplejson.dumps(data, ensure_ascii=False)
+        self.response.content_type = 'application/json'
+        self.response.out.write(json)
+        
 application = webapp.WSGIApplication(
                                      [('/api/get_icon', GetIconAPI),
-                                      ('/api/get_marker_data', GetMarkerDataAPI)],
+                                      ('/api/get_marker_data', GetMarkerDataAPI),
+                                      ('/api/get_tag_index', GetTagIndexAPI),
+                                      ('/api/get_marker_id_from_index', GetMarkerIdFromIndexAPI)],
                                      debug=True)
 
 def main():

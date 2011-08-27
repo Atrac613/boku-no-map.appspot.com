@@ -21,8 +21,11 @@ from db import MarkerIcon
 
 class IndexPage(webapp.RequestHandler):
     def get(self):
-
+        
+        login_url = users.create_login_url('/user/home')
+        
         template_values = {
+            'login_url': login_url
         }
         
         path = os.path.join(os.path.dirname(__file__), 'templates/index.html')

@@ -8,8 +8,9 @@
 <meta name="viewport" content="width=415, user-scalable=no /">
 
 <link rel="stylesheet" media="all" href="/js/jquery.simpledialog.0.1.css" type="text/css" />
+<link rel="stylesheet" media="all" href="/css/common.css" type="text/css" />
 
-<script type="text/javascript" src="https://www.google.com/jsapi?key=ABQIAAAABWHoUYB9jDrGW3d3NAJY4hQqau2NnAKqpdE-nWR9VqhYDKeM3RQOkLNfGD3gd3ZMgrn9jNe041vL0g"></script>
+<script type="text/javascript" src="https://www.google.com/jsapi"></script>
 <script language="Javascript" type="text/javascript">
 	google.load("jquery", "1");
 	google.load("jqueryui", "1");
@@ -49,21 +50,59 @@ function initialize(lat, lng) {
 	  $("#set_marker input[name='lng']").val(event.latLng.lng());
   });
   
-  var activity_id_list = '{{ activity_id_list }}'.split(',');
-  for (var i in activity_id_list) {
-	  $.getJSON('/api/get_marker_data', {id: activity_id_list[i]}, function(data){
-		  var location = new google.maps.LatLng(data.lat, data.lng);
-		  addMarker(location, data.id, data.name, data.tags, data.icon);
-	  });
-  }
+  buildAllMarker();
+  
+  $.getJSON('/api/get_tag_index', {id: '{{ map_id }}'}, function(data){
+	  if (data != null) {
+		  var select_tag = '<select name="tag_index_id" id="tag_index_id">';
+		  select_tag += '<option value="all">すべて</option>';
+	  	  for (var i in data) {
+	  		  select_tag += '<option value="' + data[i].id + '">' + data[i].tag + ' (' + data[i].count + ')</option>';
+	  	  }
+	  	  select_tag += '</select>';
+	  	  
+	  	  $('#sort_box div').html(select_tag);
+	  	  $('#sort_box').show();
+	  	  
+	  	  $('#tag_index_id').change(function(){
+	  		  if ($(this).val() == 'all') {
+	  			  deleteOverlays();
+	  			  buildAllMarker();
+	  		  } else {
+		  		  $.getJSON('/api/get_marker_id_from_index', {id: $(this).val()}, function(data){
+		  			  if (data != null) {
+		  				  deleteOverlays();
+		  				  for (var i in data) {
+		  					  $.getJSON('/api/get_marker_data', {id: data[i]}, function(data){
+		  					      var location = new google.maps.LatLng(data.lat, data.lng);
+		  					      addMarker(location, data.id, data.name, data.tags, data.icon);
+		  				  	  });
+		  				  }
+		  			  }
+		  		  });
+	  		  }
+	  	  });
+	  }
+  });
+}
+
+function buildAllMarker() {
+	var activity_id_list = '{{ activity_id_list }}'.split(',');
+	  for (var i in activity_id_list) {
+		  $.getJSON('/api/get_marker_data', {id: activity_id_list[i]}, function(data){
+			  var location = new google.maps.LatLng(data.lat, data.lng);
+			  addMarker(location, data.id, data.name, data.tags, data.icon);
+		  });
+	  }
 }
   
 function addMarker(location, id, name, tags, icon) {
-	if (icon.length) {
+	if (icon != '') {
 		icon_path = '/api/get_icon?id=' + icon
 	} else {
 		icon_path = ''
 	}
+	
   marker = new google.maps.Marker({
     position: location,
     map: map,
@@ -100,7 +139,23 @@ function attachMessage(marker, id, name, tags) {
     	});
     	infowindow.open(map, marker);
     });
-  }
+    
+    $('#marker_id_' + id).click(function(){
+    	var contentString = '<span style="line-height:1.4em;font-size:1em;">'+name+'</span><br />';
+    	contentString += '<span style="line-height:1.4em;font-size:0.9em;">'+tags+'</span>';
+
+{% if map_owner %}
+    	if (id != '') {
+    		contentString += '&nbsp;<span style="font-size:0.9em;"><a href="/map/edit/{{ map_id }}?marker_id='+id+'">編集</a></span>';
+    	}
+{% endif %}
+
+		var infowindow = new google.maps.InfoWindow({
+    	    content: contentString
+    	});
+    	infowindow.open(map, marker);
+    });
+}
 
 // Shows any overlays currently in the array
 function showOverlays() {
@@ -230,14 +285,32 @@ function buildMarker(lat, lng, myOptions){
 </head>
 <body>
 
-<h1><center>{{ map_title }}</center></h1>
+<h1><center>{{ map_title }}{% if map_owner %}<p style="font-size:0.4em;"><a href="/map/edit_title/{{ map_id }}">タイトルを変更する</a></p>{% endif %}</center></h1>
+
+{% if map_owner %}
+{% ifequal mode 'delete' %}
+<div style="margin: 10px auto;background-color:rgba(255, 0, 0, 0.5);width:200px;height:100px;">
+<div style="padding:5px;font-size:0.8em;">
+本当に削除してもよろしいでしょうか？
+<div style="margin: 10px auto; width:60px;">
+<form action="/map/{{ map_id }}" method="post">
+<input type="hidden" name="mode" value="delete" />
+<input type="submit" value="DELETE" />
+</form>
+</div>
+</div>
+</div>
+{% endifequal %}
+{% endif %}
 
 <center>
 
-<div id="map_canvas" style="width:300px; height:250px"></div>
+<div id="map_canvas" style="width:300px; height:250px;border-radius: 15px !important;"></div>
+
+<div id="sort_box" style="margin-top:30px;display: none;"><span>ソートする</span><div></div></div>
 
 {% if map_owner %}
-<div style="margin-top:30px;">
+<div style="margin-top:25px;">
 <a href="#" id="sdHc1" rel="simpleDialog1">ピンの位置をマークする</a> 
 </div>
 
@@ -253,8 +326,6 @@ function buildMarker(lat, lng, myOptions){
 
 </center>
 
-
-
 {% if available_icon_list %}
 <hr />
 <center>
@@ -268,7 +339,7 @@ function buildMarker(lat, lng, myOptions){
 <hr />
 <center>
 {% for activity in activity_list %}
-<p>{{activity.name}} - {{activity.created_at}}</p>
+<p id="marker_id_{{ activity.id }}" style="text-decoration: underline;cursor: pointer;">{{activity.name}} - {{activity.created_at}}</p>
 {% endfor %}
 </center>
 {% endif %}
@@ -331,9 +402,9 @@ function buildMarker(lat, lng, myOptions){
 
 <center>
 {% if login %}
-<a href="{{ url }}">ログアウト</a>
+<a href="/user/home">Home</a> | <a href="{{ url }}">Logout</a>
 {% else %}
-<a href="{{ url }}">ログイン</a>
+<a href="{{ url }}">Login</a>
 {% endif %}
 </center>
 

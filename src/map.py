@@ -23,9 +23,11 @@ from db import MarkerIcon
 class MapViewPage(webapp.RequestHandler):
     def get(self, map_id):
         
-        user_maps = UserMaps.all().filter('map_id =', map_id).get()
+        user_maps = UserMaps.all().filter('map_id =', map_id).filter('visible =', True).get()
         if user_maps is None:
             return self.error(404)
+        
+        map_title = user_maps.map_title
         
         lat = ''
         lng = ''
@@ -69,8 +71,10 @@ class MapViewPage(webapp.RequestHandler):
                     for marker_icon in marker_icon_list:
                         icon_list.append({'id': marker_icon.key().id(), 'name': marker_icon.name})
         
+        mode = self.request.get('mode')
+        
         template_values = {
-            'map_title': user_maps.map_title,
+            'map_title': map_title,
             'map_id': map_id,
             'lat': lat,
             'lng': lng,
@@ -80,7 +84,8 @@ class MapViewPage(webapp.RequestHandler):
             'available_icon_list': available_icon_list,
             'map_owner': map_owner,
             'login': user and True or False,
-            'url': url
+            'url': url,
+            'mode': mode
         }
         
         path = os.path.join(os.path.dirname(__file__), 'templates/map/map.html')
@@ -96,7 +101,7 @@ class MapViewPage(webapp.RequestHandler):
         if user_prefs is None:
             return self.redirect('/map/%s' % map_id)
         
-        user_maps = UserMaps.all().filter('map_id =', map_id).filter('user_prefs =', user_prefs.key()).get()
+        user_maps = UserMaps.all().filter('map_id =', map_id).filter('visible =', True).filter('user_prefs =', user_prefs.key()).get()
         if user_maps is None:
             return self.redirect('/map/%s' % map_id)
         
@@ -138,13 +143,18 @@ class MapViewPage(webapp.RequestHandler):
                 taskqueue.add(url='/task/build_tag_index', params={'map_id': map_id})
             except:
                 logging.error('Taskqueue add failed.')
+                
+        elif mode == 'delete':
+            user_maps.visible = False
+            user_maps.put()
+            return self.redirect('/user/home')
             
         return self.redirect('/map/%s' % map_id)
         
 class MapEditPage(webapp.RequestHandler):
     def get(self, map_id):
         
-        user_maps = UserMaps.all().filter('map_id =', map_id).get()
+        user_maps = UserMaps.all().filter('visible =', True).filter('map_id =', map_id).get()
         if user_maps is None:
             return self.error(404)
         
@@ -205,7 +215,7 @@ class MapEditPage(webapp.RequestHandler):
         self.response.out.write(template.render(path, template_values))
         
     def post(self, map_id):
-        user_maps = UserMaps.all().filter('map_id =', map_id).get()
+        user_maps = UserMaps.all().filter('visible =', True).filter('map_id =', map_id).get()
         if user_maps is None:
             return self.error(404)
         
@@ -241,11 +251,52 @@ class MapEditPage(webapp.RequestHandler):
         
         user_activity.put()
         
+        memcache.delete('marker_data_%s' % marker_id)
+        
+        self.redirect('/map/%s' % map_id)
+        
+class MapEditTitlePage(webapp.RequestHandler):
+    def get(self, map_id):
+        user_maps = UserMaps.all().filter('visible =', True).filter('map_id =', map_id).get()
+        if user_maps is None:
+            return self.error(404)
+        
+        user = users.get_current_user()
+        
+        if user_maps.user_prefs.google_account != user:
+            return self.redirect('/map/%s' % map_id)
+        
+        template_values = {
+            'map_title': user_maps.map_title,
+            'map_id': map_id
+        }
+        
+        path = os.path.join(os.path.dirname(__file__), 'templates/map/map_edit_title.html')
+        self.response.out.write(template.render(path, template_values))
+        
+    def post(self, map_id):
+        mode = self.request.get('mode')
+        
+        user_maps = UserMaps.all().filter('visible =', True).filter('map_id =', map_id).get()
+        if user_maps is None:
+            return self.error(404)
+        
+        user = users.get_current_user()
+        
+        if user_maps.user_prefs.google_account != user:
+            return self.redirect('/map/%s' % map_id)
+        
+        if mode == 'modify':
+            map_title = self.request.get('map_title')
+            user_maps.map_title = map_title
+            user_maps.put()
+            
         self.redirect('/map/%s' % map_id)
         
 application = webapp.WSGIApplication(
                                      [('/map/([^/]+)?', MapViewPage),
-                                      ('/map/edit/([^/]+)?', MapEditPage)],
+                                      ('/map/edit/([^/]+)?', MapEditPage),
+                                      ('/map/edit_title/([^/]+)?', MapEditTitlePage)],
                                      debug=True)
 
 def main():

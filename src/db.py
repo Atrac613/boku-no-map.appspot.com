@@ -21,6 +21,7 @@ class UserMaps(db.Model):
     map_id = db.StringProperty()
     map_title = db.StringProperty()
     home_geo = db.GeoPtProperty()
+    visible = db.BooleanProperty()
     created_at = db.DateTimeProperty(auto_now_add=True)
     
 class UserActivity(db.Model):
@@ -37,5 +38,6 @@ class UserActivityTagIndex(db.Model):
     user_maps = db.ReferenceProperty(UserMaps)
     tag = db.StringProperty()
     user_activity_id_list = db.TextProperty()
+    count = db.IntegerProperty()
     created_at = db.DateTimeProperty(auto_now_add=True)
     

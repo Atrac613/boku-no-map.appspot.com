@@ -27,10 +27,15 @@ class HomePage(webapp.RequestHandler):
         if user_prefs is None:
             return self.error(404)
         
-        user_maps = UserMaps.all().filter('user_prefs =', user_prefs.key()).fetch(100)
+        user_maps = UserMaps.all().filter('visible =', True).filter('user_prefs =', user_prefs.key()).fetch(100)
+
+        nickname = user.nickname()
+        logout_url = users.create_logout_url('/')
 
         template_values = {
-            'map_list': user_maps
+            'map_list': user_maps,
+            'nickname': nickname,
+            'logout_url': logout_url
         }
         
         path = os.path.join(os.path.dirname(__file__), 'templates/user/home.html')
@@ -84,7 +89,7 @@ class IconPage(webapp.RequestHandler):
                 marker_icon.visible = False
                 marker_icon.put()
         
-        self.redirect('/icon')
+        self.redirect('/user/icon')
 
 class CreatePage(webapp.RequestHandler):
     def get(self):
@@ -114,12 +119,13 @@ class CreatePage(webapp.RequestHandler):
             user_prefs.google_account = user
             user_prefs.put()
         
-        user_maps = UserMaps.all().filter('map_id =', map_id).get()
+        user_maps = UserMaps.all().filter('visible =', True).filter('map_id =', map_id).get()
         if user_maps is None and map_id != '':
             user_maps = UserMaps()
             user_maps.map_id = map_id
             user_maps.map_title = map_title
             user_maps.user_prefs = user_prefs
+            user_maps.visible = True
             user_maps.put()
             
             self.redirect('/map/%s' % map_id)

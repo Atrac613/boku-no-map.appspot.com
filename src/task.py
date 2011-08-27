@@ -24,7 +24,7 @@ class BuildTagIndexTask(webapp.RequestHandler):
     def post(self):
         map_id = self.request.get('map_id')
         
-        user_maps = UserMaps.all().filter('map_id =', map_id).get()
+        user_maps = UserMaps.all().filter('visible =', True).filter('map_id =', map_id).get()
         if user_maps is None:
             logging.error('map_id not found.')
             return
@@ -49,13 +49,17 @@ class BuildTagIndexTask(webapp.RequestHandler):
             if len(user_activity_tag_index_list) > 0:
                 logging.info('Clear Index: %d' % len(user_activity_tag_index_list))
                 for user_activity_tag_index in user_activity_tag_index_list:
+                    memcache.delete('tag_id_list_%f' % user_activity_tag_index.key().id())
                     user_activity_tag_index.delete()
+                    
+                memcache.delete('tag_index_%s' % map_id)
                     
             for tag, activity_id_list in index.items():
                 user_activity_tag_index_list = UserActivityTagIndex()
                 user_activity_tag_index_list.user_maps = user_maps.key()
                 user_activity_tag_index_list.tag = tag
                 user_activity_tag_index_list.user_activity_id_list = ','.join(activity_id_list)
+                user_activity_tag_index_list.count = len(activity_id_list)
                 user_activity_tag_index_list.put()
                 
             logging.info('Add Index: %d' % len(index))
