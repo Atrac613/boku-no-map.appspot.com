@@ -25,6 +25,7 @@
 var map;
 var markersArray = [];
 var currentMarkerId = null;
+var defaultSortTag = '';
 
 function initialize(lat, lng) {
   var haightAshbury = new google.maps.LatLng(lat, lng);
@@ -54,36 +55,73 @@ function initialize(lat, lng) {
   
   $.getJSON('/api/get_tag_index', {id: '{{ map_id }}'}, function(data){
 	  if (data != null) {
-		  var select_tag = '<select name="tag_index_id" id="tag_index_id">';
+		  var select_tag = '<select>';
 		  select_tag += '<option value="all">すべて</option>';
 	  	  for (var i in data) {
 	  		  select_tag += '<option value="' + data[i].id + '">' + data[i].tag + ' (' + data[i].count + ')</option>';
 	  	  }
 	  	  select_tag += '</select>';
+	  	  defaultSortTag = select_tag;
 	  	  
-	  	  $('#sort_box div').html(select_tag);
+	  	  $('#boxA1').html('<div>'+select_tag+'<input type="button" id="addSelect" value="+" /></div>');
 	  	  $('#sort_box').show();
 	  	  
-	  	  $('#tag_index_id').change(function(){
-	  		  if ($(this).val() == 'all') {
-	  			  deleteOverlays();
-	  			  buildAllMarker();
-	  		  } else {
-		  		  $.getJSON('/api/get_marker_id_from_index', {id: $(this).val()}, function(data){
-		  			  if (data != null) {
-		  				  deleteOverlays();
-		  				  for (var i in data) {
-		  					  $.getJSON('/api/get_marker_data', {id: data[i]}, function(data){
-		  					      var location = new google.maps.LatLng(data.lat, data.lng);
-		  					      addMarker(location, data.id, data.name, data.tags, data.icon);
-		  				  	  });
-		  				  }
-		  			  }
-		  		  });
-	  		  }
+	  	  $('#sort_box div select').live('change', function(){
+	  		  var id_list = [];
+	  		  $('#sort_box div select option:selected').each(function(){
+	  			  $(this).attr('selected', 'selected');
+	  			  id_list.push($(this).val());
+	  		  });
+	  		  
+	  		  getSortedMarker(id_list);
+	  	  });
+	  	  
+	  	  $('#addSelect').live('click', function(){
+	  		  var tag = $('#boxA1').html();
+	  		  tag += '<div>' + defaultSortTag + '<input type="button" value="-" name="removeSelect" /></div>';
+	  		  
+	  		  $('#boxA1').html(tag);
+		  	  
+		  	  return false;
+	  	  });
+	  	  
+	  	  $('#sort_box div input[name=removeSelect]').live('click', function(){
+	  		  $(this).parent('div').remove();
+	  		  var id_list = [];
+	  		  $('#sort_box div select option:selected').each(function(){
+	  			  id_list.push($(this).val());
+	  		  });
+   	  		  getSortedMarker(id_list);
 	  	  });
 	  }
   });
+}
+
+function getSortedMarker(id_list) {
+	if (id_list.length > 0) {
+		if (id_list.length == 1) {
+			var id = id_list[0];
+			if (id == 'all') {
+				deleteOverlays();
+	  			buildAllMarker();
+	  			
+	  			return false;
+			}
+		}
+		$.getJSON('/api/get_marker_id_from_index', {id: id_list.join(',')}, function(data){
+			  if (data != null) {
+				  deleteOverlays();
+				  $('.marker_title').hide();
+				  for (var i in data) {
+					  $.getJSON('/api/get_marker_data', {id: data[i]}, function(data){
+					      var location = new google.maps.LatLng(data.lat, data.lng);
+					      addMarker(location, data.id, data.name, data.tags, data.icon);
+					      $('#marker_id_' + data.id).show();
+				  	  });
+				  }
+			  }
+		});
+	}
 }
 
 function buildAllMarker() {
@@ -307,7 +345,7 @@ function buildMarker(lat, lng, myOptions){
 
 <div id="map_canvas" style="width:300px; height:250px;border-radius: 15px !important;"></div>
 
-<div id="sort_box" style="margin-top:30px;display: none;"><span>ソートする</span><div></div></div>
+<div id="sort_box" style="margin-top:30px;display: none;"><span>ソートする</span><div id="boxA1"></div></div>
 
 {% if map_owner %}
 <div style="margin-top:25px;">
@@ -339,7 +377,7 @@ function buildMarker(lat, lng, myOptions){
 <hr />
 <center>
 {% for activity in activity_list %}
-<p id="marker_id_{{ activity.id }}" style="text-decoration: underline;cursor: pointer;">{{activity.name}} - {{activity.created_at}}</p>
+<p id="marker_id_{{ activity.id }}" style="text-decoration: underline;cursor: pointer;" class="marker_title">{{activity.name}} - {{activity.created_at}}</p>
 {% endfor %}
 </center>
 {% endif %}

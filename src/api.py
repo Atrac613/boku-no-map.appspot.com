@@ -112,24 +112,58 @@ class GetMarkerIdFromIndexAPI(webapp.RequestHandler):
         
         index_id = self.request.get('id')
         
-        data = memcache.get('tag_id_list_%s' % index_id)
-        if data is None:
-            user_activity_tag_index = UserActivityTagIndex.get_by_id(int(index_id))
-            if user_activity_tag_index is None:
-                logging.error('Tag index not found.')
-                return self.error(404)
-            
-            data = []
-            for marker_id in user_activity_tag_index.user_activity_id_list.split(','):
-                data.append(marker_id)
-            
-            memcache.add('tag_id_list_%s' % index_id, data, 3600)
-            logging.info('Add memcache.')
-            
-        else:
-            logging.info('Load memcache.')
+        index_id_list = index_id.split(',')
+        logging.info(index_id_list)
         
-        json = simplejson.dumps(data, ensure_ascii=False)
+        tmp_data = []
+        
+        for index_id in index_id_list:
+            # workaround
+            try:
+                int(index_id)
+            except:
+                continue
+            
+            data = memcache.get('tag_id_list_%s' % index_id)
+            if data is None:
+                user_activity_tag_index = UserActivityTagIndex.get_by_id(int(index_id))
+                if user_activity_tag_index is None:
+                    logging.error('Tag index not found.')
+                    return self.error(404)
+                
+                data = []
+                for marker_id in user_activity_tag_index.user_activity_id_list.split(','):
+                    data.append(marker_id)
+                
+                memcache.add('tag_id_list_%s' % index_id, data, 3600)
+                logging.info('Add memcache.')
+                
+            else:
+                logging.info('Load memcache.')
+            
+            tmp_data.append(data)
+        
+        sorted_data = []
+
+        if len(tmp_data) != 1:
+            id_count = {}
+            for tmp_list in tmp_data:
+                for tmp_id in tmp_list:
+                    if tmp_id not in id_count:
+                        id_count[tmp_id] = 1
+                    else:
+                        id_count[tmp_id] += 1
+                        
+            for key, value in id_count.items():
+                if value == len(tmp_data):
+                    sorted_data.append(key)
+
+        else:
+            sorted_data = tmp_data[0]
+        
+        logging.info(sorted_data)
+        
+        json = simplejson.dumps(sorted_data, ensure_ascii=False)
         self.response.content_type = 'application/json'
         self.response.out.write(json)
         
